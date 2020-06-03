@@ -52,7 +52,7 @@ def main():
     except:
         err = sys.exc_info()
         # logging.exception("An exception occured: {}".format(err[0].__name__))
-        print(An exception occured: {}".format(err[0].__name__))
+        print("An exception occured: {}".format(err[0].__name__))
 
 
 
@@ -117,10 +117,10 @@ if __name__ == '__main__':
         os.makedirs(os.path.expanduser('~/logs/network_data_logs/'))
 
     #Create the debug logger
-    filename = os.path.expanduser('~/logs/network_data_logs/speed_test_main_debug_{}.log'.format(date))
-    log_format = '%(levelname)s %(asctime)s - %(message)s'
-    logging.basicConfig(filename=filename,
-                        level   =logging.DEBUG,
-                        format  =log_format)
+    # filename = os.path.expanduser('~/logs/network_data_logs/speed_test_main_debug_{}.log'.format(date))
+    # log_format = '%(levelname)s %(asctime)s - %(message)s'
+    # logging.basicConfig(filename=filename,
+    #                    level   =logging.DEBUG,
+    #                    format  =log_format)
     # usage()
     main()
