@@ -3,9 +3,11 @@ from datetime import datetime
 import logging
 import os
 import pytz
+import requests
 import speedtest
 import sys
 import time
+
 
 
 ################################################################################
@@ -21,6 +23,9 @@ def main():
     #Init variables
     downloads = []
     uploads = []
+
+    slack_url = 'https://hooks.slack.com/services/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'
+    json_obj = {}
 
     #Get the current date and time
     date, current_time = get_date_time()
@@ -43,18 +48,23 @@ def main():
         download, upload = get_speedtest_results()
         # logging.info("Download: {}   Upload: {}".format(download, upload))
 
+        json_obj={'text':'Speed Test: \n     Download: {} Mbps \n     Upload: {} Mbps'.format(download, upload)}
+
+        send_slack_update(slack_url, json_obj)
+
         #Write the results of the test to the log
         with open(os.path.expanduser("~/logs/network_data_logs/network_data_{}.csv".format(date)),'a') as speed_data:
             writer = csv.writer(speed_data, delimiter='\t')
             writer.writerows(zip([download],
                                  [upload],
                                  [current_time]))
+         
     except:
         err = sys.exc_info()
         # logging.exception("An exception occured: {}".format(err[0].__name__))
-        print("An exception occured: {}".format(err[0].__name__))
-
-
+        # print("An exception occured: {}".format(err[0].__name__))
+        json_obj={'text':'An exception occured: {}'.format(err[0].__name__)}
+        send_slack_update(slack_url, json_obj)
 
 ################################################################################
 # This function produces the current date and time to be used for logging
@@ -67,6 +77,16 @@ def get_date_time():
     date = d.strftime('%m-%d-%Y')
     current_time = d.strftime('%H:%M:%S')
     return date, current_time
+
+
+
+################################################################################
+# Sends the results of the test to the slack API.
+# Input: None
+# Output: date, current_time
+################################################################################
+def send_slack_update(url, json_obj):
+    response = requests.post(url, json=json_obj)
 
 
 
