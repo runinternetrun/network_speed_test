@@ -4,9 +4,11 @@ import logging
 import os
 import pytz
 import requests
+import slack_data
 import speedtest
 import sys
 import time
+
 
 
 
@@ -24,7 +26,7 @@ def main():
     downloads = []
     uploads = []
 
-    slack_url = 'https://hooks.slack.com/services/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'
+    slack_url = slack_data.url
     json_obj = {}
 
     #Get the current date and time
@@ -58,7 +60,7 @@ def main():
             writer.writerows(zip([download],
                                  [upload],
                                  [current_time]))
-         
+
     except:
         err = sys.exc_info()
         # logging.exception("An exception occured: {}".format(err[0].__name__))
