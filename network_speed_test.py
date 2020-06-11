@@ -26,7 +26,7 @@ def main():
     downloads = []
     uploads = []
 
-    slack_url = slack_data.url
+    slack_url = slack_data.get_url() 
     json_obj = {}
 
     #Get the current date and time
