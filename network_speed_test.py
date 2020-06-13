@@ -1,6 +1,7 @@
 import csv
 from datetime import datetime
 import logging
+import matplotlib.pyplot as plt
 import os
 import pytz
 import requests
@@ -8,7 +9,6 @@ import slack_data
 import speedtest
 import sys
 import time
-
 
 
 
@@ -20,27 +20,24 @@ import time
 # Input: None
 # Output: None
 ################################################################################
-def main():
+def main(path, filename, date):
 
     #Init variables
     downloads = []
     uploads = []
 
-    slack_url = slack_data.get_url() 
+    slack_url = slack_data.get_slack_url()
     json_obj = {}
 
-    #Get the current date and time
-    date, current_time = get_date_time()
-
     #Check if the network_data_<date> file already exists, if not, make it
-    if not os.path.exists(os.path.expanduser("~/logs/network_data_logs/network_data_{}.csv".format(date))):
+    if not os.path.exists(os.path.expanduser(path)):
 
         #Create file and add headers
-        with open(os.path.expanduser("~/logs/network_data_logs/network_data_{}.csv".format(date)),'w') as speed_data:
-            writer = csv.writer(speed_data, delimiter='\t')
-            writer.writerows(zip(["Download (Mb/s)"],
-                                 ["Upload (Mb/s)"],
-                                 ["Time Stamp"]))
+        with open(os.path.expanduser(path + filename + date),'w', newline='') as file:
+            writer = csv.writer(file, delimiter='\t')
+            writer.writerows(zip(["Download(Mb/s)"],
+                                 ["Upload(Mb/s)"],
+                                 ["TimeStamp"]))
 
     # logger = logging.getLogger()
     # logger.info("Starting test...")
@@ -55,8 +52,8 @@ def main():
         send_slack_update(slack_url, json_obj)
 
         #Write the results of the test to the log
-        with open(os.path.expanduser("~/logs/network_data_logs/network_data_{}.csv".format(date)),'a') as speed_data:
-            writer = csv.writer(speed_data, delimiter='\t')
+        with open(os.path.expanduser(path + filename + date), 'a',  newline='') as file:
+            writer = csv.writer(file, delimiter='\t')
             writer.writerows(zip([download],
                                  [upload],
                                  [current_time]))
@@ -114,6 +111,39 @@ def get_speedtest_results():
     return download, upload
 
 
+def plot_data(path, filename, date):
+    time = []
+    download = []
+    upload = []
+
+    with open(os.path.expanduser(path + filename + date), 'r') as file:
+        data = csv.reader(file, delimiter='\t')
+
+        #Skip the header
+        next(data)
+
+        for row in data:
+            # print(row)
+            download.append(float(row[0]))
+            upload.append(float(row[1]))
+            time.append(row[2])
+
+
+    fig = plt.figure('Network Speeds vs. Time')
+    ax = fig.add_subplot(111)
+
+    ax.scatter(time, download, s=10, c='b', marker="s", label='Download')
+    ax.scatter(time, upload, s=10, c='r', marker="o", label='Upload')
+    fig.legend()
+
+    plt.xlabel('Time')
+    plt.ylabel('Mbps')
+    plt.title('Download and Upload Speeds vs. Time')
+    plt.savefig(os.path.expanduser(path) + 'plot_{}'.format(date))
+    # print(download, upload, time)
+
+
+
 
 ################################################################################
 # Usage function to detail where the results of this script can be found and
@@ -126,17 +156,20 @@ def usage():
 The output can be found in ./logs/network_data_{date_it_was_run}.csv.
 A detailed logging history can be seen in ./logs/speed_test_main_debug_{date_it_was_run}.log\n
 This script requires that 'speedtest.py' be in the same directory when running the script.\n'''
-
-
     print(usage_string)
+
+
 if __name__ == '__main__':
+
+    path = '~/logs/network_data_logs/'
+    filename = 'network_data_'
 
     #Get the current date and time
     date, current_time = get_date_time()
 
     #Check if the logs/ folder already exists, if not, make it
-    if not os.path.exists(os.path.expanduser('~/logs/network_data_logs/')):
-        os.makedirs(os.path.expanduser('~/logs/network_data_logs/'))
+    if not os.path.exists(os.path.expanduser(path)):
+        os.makedirs(os.path.expanduser(path))
 
     #Create the debug logger
     # filename = os.path.expanduser('~/logs/network_data_logs/speed_test_main_debug_{}.log'.format(date))
@@ -145,4 +178,6 @@ if __name__ == '__main__':
     #                    level   =logging.DEBUG,
     #                    format  =log_format)
     # usage()
-    main()
+
+    main(path, filename, date)
+    plot_data(path, filename, date)
