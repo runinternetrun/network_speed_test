@@ -3,6 +3,8 @@ from datetime import datetime
 import logging
 import matplotlib.pyplot as plt
 import os
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 import pytz
 import requests
 import slack_data
@@ -10,28 +12,22 @@ import speedtest
 import sys
 import time
 
-
-
 ################################################################################
 # This is the main function that will run the network speed test.
-# It will create the log directory, set up the debug logger, and log the results
-# of the test in csv format with filename: ./logs/network_data_<date>.csv.
-# The debug log file can be found at: ./logs/speed_test_main_debug_<date>.log
-# Input: None
+# It will create the log directory, and log the results
+# of the test in csv format with filename: ./logs/network_data_<date>.
+# Input: path, filename, date, slack_url
 # Output: None
 ################################################################################
-def main(path, filename, date):
+def main(path, filename, date, slack_url):
 
     #Init variables
     downloads = []
     uploads = []
-
-    slack_url = slack_data.get_slack_url()
     json_obj = {}
 
     #Check if the network_data_<date> file already exists, if not, make it
     if not os.path.exists(os.path.expanduser(path)):
-
         #Create file and add headers
         with open(os.path.expanduser(path + filename + date),'w', newline='') as file:
             writer = csv.writer(file, delimiter='\t')
@@ -39,31 +35,23 @@ def main(path, filename, date):
                                  ["Upload(Mb/s)"],
                                  ["TimeStamp"]))
 
-    # logger = logging.getLogger()
-    # logger.info("Starting test...")
-
     try:
 		#Run the network speed test
         download, upload = get_speedtest_results()
-        # logging.info("Download: {}   Upload: {}".format(download, upload))
 
-        json_obj={'text':'Speed Test: \n     Download: {} Mbps \n     Upload: {} Mbps'.format(download, upload)}
+        send_slack_update(slack_url, download, upload)
 
-        send_slack_update(slack_url, json_obj)
-
-        #Write the results of the test to the log
-        with open(os.path.expanduser(path + filename + date), 'a',  newline='') as file:
-            writer = csv.writer(file, delimiter='\t')
-            writer.writerows(zip([download],
-                                 [upload],
-                                 [current_time]))
+        if not os.path.exists(os.path.expanduser(path)):
+            #Write the results of the test to the log
+            with open(os.path.expanduser(path + filename + date), 'a',  newline='') as file:
+                writer = csv.writer(file, delimiter='\t')
+                writer.writerows(zip([download],
+                                     [upload],
+                                     [current_time]))
 
     except:
-        err = sys.exc_info()
-        # logging.exception("An exception occured: {}".format(err[0].__name__))
-        # print("An exception occured: {}".format(err[0].__name__))
-        json_obj={'text':'An exception occured: {}'.format(err[0].__name__)}
-        send_slack_update(slack_url, json_obj)
+        handle_exception(slack_url)
+
 
 ################################################################################
 # This function produces the current date and time to be used for logging
@@ -84,8 +72,30 @@ def get_date_time():
 # Input: None
 # Output: date, current_time
 ################################################################################
-def send_slack_update(url, json_obj):
+def send_slack_update(url, download, upload):
+    json_obj = {
+    'text': 'Speed test results: {} {}'.format(download, upload)
+    }
     response = requests.post(url, json=json_obj)
+
+def send_slack_exception(url, exception, filename, line_number):
+    json_obj={'text': 'An exception occured: {} in {} on line {}'.format(exception, filename, line_number)}
+    response = requests.post(url, json=json_obj)
+
+def handle_exception(slack_url):
+    err_type, err_object, err_trace = sys.exc_info()
+
+    err_name = err_type.__name__
+    err_filename = err_trace.tb_frame.f_code.co_filename
+    line_number = err_trace.tb_lineno
+
+    send_slack_exception(slack_url, err_name, filename, line_number)
+
+def upload_file_to_google_drive():
+    # gauth = GoogleAuth()
+    # gauth.LocalWebserverAuth()
+    # drive = GoogleDrive(gauth)
+    pass
 
 
 
@@ -111,38 +121,38 @@ def get_speedtest_results():
     return download, upload
 
 
-def plot_data(path, filename, date):
+def plot_data(path, filename, date, slack_url):
     time = []
     download = []
     upload = []
 
-    with open(os.path.expanduser(path + filename + date), 'r') as file:
-        data = csv.reader(file, delimiter='\t')
+    try:
+        with open(os.path.expanduser(path + filename + date), 'r') as file:
+            data = csv.reader(file, delimiter='\t')
 
-        #Skip the header
-        next(data)
+            #Skip the header
+            next(data)
 
-        for row in data:
-            # print(row)
-            download.append(float(row[0]))
-            upload.append(float(row[1]))
-            time.append(row[2])
-
-
-    fig = plt.figure('Network Speeds vs. Time')
-    ax = fig.add_subplot(111)
-
-    ax.scatter(time, download, s=10, c='b', marker="s", label='Download')
-    ax.scatter(time, upload, s=10, c='r', marker="o", label='Upload')
-    fig.legend()
-
-    plt.xlabel('Time')
-    plt.ylabel('Mbps')
-    plt.title('Download and Upload Speeds vs. Time')
-    plt.savefig(os.path.expanduser(path) + 'plot_{}'.format(date))
-    # print(download, upload, time)
+            for row in data:
+                download.append(float(row[0]))
+                upload.append(float(row[1]))
+                time.append(row[2])
 
 
+        fig = plt.figure('Network Speeds vs. Time')
+        ax = fig.add_subplot(111)
+
+        ax.scatter(time, download, s=10, c='b', marker="s", label='Download')
+        ax.scatter(time, upload, s=10, c='r', marker="o", label='Upload')
+        fig.legend()
+
+        plt.xlabel('Time (H:M:S)')
+        plt.ylabel('Speed (Mbps)')
+        plt.title('Download and Upload Speeds vs. Time')
+        plt.savefig(os.path.expanduser(path) + 'plot_{}'.format(date))
+
+    except:
+        handle_exception(slack_url)
 
 
 ################################################################################
@@ -151,6 +161,7 @@ def plot_data(path, filename, date):
 # Input: None
 # Output: download, upload
 ################################################################################
+#TODO: Update usage string
 def usage():
     usage_string = '''\nThis script will test your network download and upload speeds.
 The output can be found in ./logs/network_data_{date_it_was_run}.csv.
@@ -161,23 +172,15 @@ This script requires that 'speedtest.py' be in the same directory when running t
 
 if __name__ == '__main__':
 
+    #init data
     path = '~/logs/network_data_logs/'
     filename = 'network_data_'
-
-    #Get the current date and time
+    slack_url = slack_data.get_slack_url()
     date, current_time = get_date_time()
 
     #Check if the logs/ folder already exists, if not, make it
     if not os.path.exists(os.path.expanduser(path)):
         os.makedirs(os.path.expanduser(path))
 
-    #Create the debug logger
-    # filename = os.path.expanduser('~/logs/network_data_logs/speed_test_main_debug_{}.log'.format(date))
-    # log_format = '%(levelname)s %(asctime)s - %(message)s'
-    # logging.basicConfig(filename=filename,
-    #                    level   =logging.DEBUG,
-    #                    format  =log_format)
-    # usage()
-
-    main(path, filename, date)
-    plot_data(path, filename, date)
+    main(path, filename, date, slack_url)
+    plot_data(path, filename, date, slack_url)
