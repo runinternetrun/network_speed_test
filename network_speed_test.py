@@ -3,8 +3,6 @@ from datetime import datetime
 import logging
 import matplotlib.pyplot as plt
 import os
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
 import pytz
 import requests
 import slack_data
@@ -91,11 +89,6 @@ def handle_exception(slack_url):
 
     send_slack_exception(slack_url, err_name, filename, line_number)
 
-def upload_file_to_google_drive():
-    # gauth = GoogleAuth()
-    # gauth.LocalWebserverAuth()
-    # drive = GoogleDrive(gauth)
-    pass
 
 
 
