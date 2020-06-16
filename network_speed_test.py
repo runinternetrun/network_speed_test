@@ -25,7 +25,7 @@ def main(path, filename, date, slack_url):
     json_obj = {}
 
     #Check if the network_data_<date> file already exists, if not, make it
-    if not os.path.exists(os.path.expanduser(path)):
+    if not os.path.exists(os.path.expanduser(path + filename + date)):
         #Create file and add headers
         with open(os.path.expanduser(path + filename + date),'w', newline='') as file:
             writer = csv.writer(file, delimiter='\t')
@@ -39,7 +39,7 @@ def main(path, filename, date, slack_url):
 
         send_slack_update(slack_url, download, upload)
 
-        if not os.path.exists(os.path.expanduser(path)):
+        if os.path.exists(os.path.expanduser(path + filename + date)):
             #Write the results of the test to the log
             with open(os.path.expanduser(path + filename + date), 'a',  newline='') as file:
                 writer = csv.writer(file, delimiter='\t')
@@ -89,7 +89,24 @@ def handle_exception(slack_url):
 
     send_slack_exception(slack_url, err_name, filename, line_number)
 
+################################################################################
+# This function uploads a graph of the speed vs time to slack
+# Input: path, date, token (from slack)
+# Output: none
+################################################################################
+def upload_png(path, date, token, slack_url):
+    try:
+        my_file = {'file' : (os.path.expanduser(path+'plot_{}.png'.format(date)), open(os.path.expanduser(path+'plot_{}.png'.format(date)), 'rb'), 'png')}
 
+        payload={
+          "filename":"plot_{}.png".format(date),
+          "token"   :token,
+          "channels":["G015C5DRZDF"]
+          }
+
+        r = requests.post("https://slack.com/api/files.upload", params=payload, files=my_file)
+    except:
+        handle_exception(slack_url)
 
 
 ################################################################################
@@ -169,6 +186,7 @@ if __name__ == '__main__':
     path = '~/logs/network_data_logs/'
     filename = 'network_data_'
     slack_url = slack_data.get_slack_url()
+    token = slack_data.get_slack_token()
     date, current_time = get_date_time()
 
     #Check if the logs/ folder already exists, if not, make it
@@ -177,3 +195,4 @@ if __name__ == '__main__':
 
     main(path, filename, date, slack_url)
     plot_data(path, filename, date, slack_url)
+    upload_png(path, date, token, slack_url)
