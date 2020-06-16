@@ -47,6 +47,9 @@ def main(path, filename, date, slack_url):
                                      [upload],
                                      [current_time]))
 
+        plot_data(path, filename, date, slack_url)
+        upload_png(path, date, token, slack_url)
+
     except:
         handle_exception(slack_url)
 
@@ -87,7 +90,7 @@ def handle_exception(slack_url):
     err_filename = err_trace.tb_frame.f_code.co_filename
     line_number = err_trace.tb_lineno
 
-    send_slack_exception(slack_url, err_name, filename, line_number)
+    send_slack_exception(slack_url, err_name, err_filename, line_number)
 
 ################################################################################
 # This function uploads a graph of the speed vs time to slack
@@ -194,5 +197,3 @@ if __name__ == '__main__':
         os.makedirs(os.path.expanduser(path))
 
     main(path, filename, date, slack_url)
-    plot_data(path, filename, date, slack_url)
-    upload_png(path, date, token, slack_url)
