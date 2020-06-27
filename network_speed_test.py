@@ -1,6 +1,9 @@
+import schedule
 import speedtest
 import sys
 import time
+import threading
+
 
 ################################################################################
 # This is the main function that will run the speed test and report the results
@@ -16,7 +19,8 @@ def main():
     try:
 		#Run the network speed test
         download, upload = get_speedtest_results()
-        print('Download: {}    Upload: {}'.format(download, upload))
+        print('Download: {}    Upload: {}    Time: {}'.format(download, upload, time.ctime()))
+
     except:
         handle_exception()
 
@@ -28,8 +32,6 @@ def handle_exception():
     line_number = err_trace.tb_lineno
 
     print('Error: {} occurred in {} on line {}'.format(err_name, err_filename, line_number))
-
-
 
 ################################################################################
 # This function performs the speed test for download and upload speeds.
@@ -52,6 +54,18 @@ def get_speedtest_results():
 
     return download, upload
 
+def run_threaded(job_func):
+    job_thread = threading.Thread(target=job_func)
+    job_thread.start()
+
 if __name__ == '__main__':
 
-    main()
+    schedule.every(30).seconds.do(run_threaded, main)
+
+    while True:
+        try:
+            schedule.run_pending()
+        except:
+            handle_exception()
+        time.sleep(1)
+    # main()
